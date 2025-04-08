@@ -26,7 +26,7 @@ const activeSubscribers = new Set();
 app.post('/create-checkout-session', async (req, res) => {
   const token = req.headers.authorization?.split(' ')[1];
   const session = await verifyToken(token);
-  const email = session.email_address;
+  const email = session.email_address || session.primary_email_address;
 
   const checkoutSession = await stripe.checkout.sessions.create({
     customer_email: email,
@@ -56,11 +56,20 @@ app.post('/stripe/webhook', express.raw({ type: 'application/json' }), (request,
   response.json({ received: true });
 });
 
+// Endpoint to check subscription status
+app.get('/check-subscription', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  const session = await verifyToken(token);
+  const email = session.email_address || session.primary_email_address;
+
+  res.json({ active: activeSubscribers.has(email) });
+});
+
 // Location to SMS endpoint
 app.post('/send-location', async (req, res) => {
   const token = req.headers.authorization?.split(' ')[1];
   const session = await verifyToken(token);
-  const email = session.email_address;
+  const email = session.email_address || session.primary_email_address;
 
   if (!activeSubscribers.has(email)) {
     return res.status(403).json({ success: false, message: 'Subscription required' });
